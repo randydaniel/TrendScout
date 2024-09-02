@@ -22,30 +22,22 @@ To add shadcn components like `Button`, follow these steps:
    yarn add @shadcn/ui
    ```
 
-2. **Create a Component**:
-   Create a new file for your component, for example `Button.tsx` in the `src/components/ui` directory:
-   ```typescript:wavee/src/components/ui/Button.tsx
-   import { Button } from "@shadcn/ui"
-
-   export default function MyButton() {
-     return (
-       <Button className="bg-blue-500 text-white">
-         Click Me
-       </Button>
-     )
-   }
+2. **Add a Component**:
+   Add a component using the CLI, for example:
+   ```bash
+   npx shadcn-ui add button
    ```
 
 3. **Use the Component**:
    Import and use the component in your application:
-   ```typescript:wavee/src/pages/index.tsx
-   import MyButton from '../components/ui/Button'
+   ```typescript:wavee/src/app/page.tsx
+   import { Button } from "@/src/components/ui/button"
 
    export default function Home() {
      return (
        <div>
          <h1>Welcome to My App</h1>
-         <MyButton />
+         <Button>Click Me</Button>
        </div>
      )
    }
