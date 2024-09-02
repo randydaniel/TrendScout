@@ -111,12 +111,8 @@ export function TrendingSearches() {
   return (
     <Card className="w-full max-w-3xl flex flex-col">
       <CardHeader>
-        <CardTitle>Product Category Trends</CardTitle>
-        {lastUpdated && (
-          <p className="text-sm text-muted-foreground">
-            Last updated: {new Date(lastUpdated).toLocaleString()}
-          </p>
-        )}
+        <CardTitle>Trend Scout</CardTitle>
+        <p className="text-sm text-slate-500 tracking-tight">Your Google Trends Analysis Tool</p>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col space-y-4">
         <form onSubmit={handleAddQuery} className="mb-4">
@@ -134,7 +130,14 @@ export function TrendingSearches() {
 
         {trendingSearches.length > 0 && (
           <div className="mb-4">
-            <p className="text-sm font-medium mb-2">Trending Now:</p>
+            <div className="flex justify-between items-center mb-2">
+              <p className="text-sm font-medium">Trending Now</p>
+              {lastUpdated && (
+                <p className="text-xs text-muted-foreground">
+                  Last updated: {new Date(lastUpdated).toLocaleString()}
+                </p>
+              )}
+            </div>
             <div className="flex flex-wrap gap-2">
               {trendingSearches.map((search, index) => (
                 <Badge
@@ -181,7 +184,7 @@ export function TrendingSearches() {
                             <ChevronDown size={16} />
                           )}
                         </button>
-                        <span className="font-medium text-lg">{search.title}</span>
+                        <span className="font-medium text-lg tracking-tight">{search.title}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <span className="text-sm text-gray-500">{search.traffic}</span>
