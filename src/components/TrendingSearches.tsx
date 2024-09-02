@@ -146,7 +146,7 @@ export function TrendingSearches() {
           <div className="flex space-x-2">
             <Input
               type="text"
-              placeholder="Enter any product category"
+              placeholder="Enter any product term or category"
               value={currentQuery}
               onChange={(e) => setCurrentQuery(e.target.value)}
               className="flex-grow"
@@ -163,11 +163,15 @@ export function TrendingSearches() {
                 <Badge
                   key={index}
                   variant="outline"
-                  className={`cursor-pointer hover:bg-secondary ${searchQueries.includes(search.title) ? 'bg-green-100' : ''}`}
+                  className={`cursor-pointer transition-colors duration-200 ${
+                    searchQueries.includes(search.title)
+                      ? 'bg-slate-900 text-white hover:bg-slate-800'
+                      : 'hover:bg-slate-100'
+                  }`}
                   onClick={() => handleToggleTrendingQuery(search.title)}
                 >
                   {searchQueries.includes(search.title) ? (
-                    <Check size={14} className="mr-1 text-green-500" />
+                    <Check size={14} className="mr-1" />
                   ) : (
                     <Plus size={14} className="mr-1" />
                   )}
@@ -192,21 +196,23 @@ export function TrendingSearches() {
                     <div className="flex flex-col space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2 flex-grow">
-                          <span className="font-medium text-lg">{search.title}</span>
                           <button
                             onClick={() => handleRemoveQuery(search.title)}
-                            className="text-gray-500 hover:text-gray-700 ml-2"
+                            className="text-gray-500 hover:text-gray-700 mr-2"
                           >
                             <X size={16} />
                           </button>
+                          <span className="font-medium text-lg">{search.title}</span>
                         </div>
-                        <span className="text-sm text-gray-500">{search.traffic}</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-500 rounded-full h-2"
-                          style={{ width: `${(search.traffic / maxTraffic) * 100}%` }}
-                        ></div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-gray-500">{search.traffic}</span>
+                          <div className="w-16 bg-gray-200 rounded-full h-1.5">
+                            <div
+                              className="bg-slate-900 rounded-full h-1.5"
+                              style={{ width: `${(search.traffic / maxTraffic) * 100}%` }}
+                            ></div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
