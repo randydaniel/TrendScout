@@ -37,6 +37,7 @@ export async function GET(request: Request) {
     return NextResponse.json(trendingProducts);
   } catch (error) {
     console.error('Error fetching product searches:', error);
-    return NextResponse.json({ error: 'Error fetching product searches', details: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: 'Error fetching product searches', details: errorMessage }, { status: 500 });
   }
 }

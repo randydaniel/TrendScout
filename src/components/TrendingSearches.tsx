@@ -35,7 +35,7 @@ export function TrendingSearches() {
       setTrendingSearches(data);
     } catch (error) {
       console.error('Error fetching product searches:', error);
-      setError(error.message || 'Failed to load product searches');
+      setError(error instanceof Error ? error.message : 'Failed to load product searches');
     } finally {
       setIsLoading(false);
     }
