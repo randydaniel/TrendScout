@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/src/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/src/components/ui/card";
 import { Input } from "@/src/components/ui/input";
 import { Button } from "@/src/components/ui/button";
 import { Badge } from "@/src/components/ui/badge";
@@ -18,6 +18,7 @@ export function TrendingSearches() {
   const [error, setError] = useState<string | null>(null);
   const [searchQueries, setSearchQueries] = useState<string[]>([]);
   const [currentQuery, setCurrentQuery] = useState('');
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTrendingProducts();
@@ -140,7 +141,7 @@ export function TrendingSearches() {
       <CardHeader>
         <CardTitle>Product Category Trends</CardTitle>
       </CardHeader>
-      <CardContent className="flex-grow flex flex-col">
+      <CardContent className="flex-grow flex flex-col space-y-4">
         <form onSubmit={handleAddQuery} className="mb-4">
           <div className="flex space-x-2">
             <Input
@@ -186,42 +187,43 @@ export function TrendingSearches() {
             {allSearches
               .filter(search => searchQueries.includes(search.title))
               .map((search, index) => (
-                <div key={index} className="flex flex-col space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2 flex-grow">
-                      <span className="font-medium text-lg">{search.title}</span>
-                      <button
-                        onClick={() => handleRemoveQuery(search.title)}
-                        className="text-gray-500 hover:text-gray-700 ml-2"
-                      >
-                        <X size={16} />
-                      </button>
+                <Card key={index} className="p-4">
+                  <CardContent className="p-0">
+                    <div className="flex flex-col space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2 flex-grow">
+                          <span className="font-medium text-lg">{search.title}</span>
+                          <button
+                            onClick={() => handleRemoveQuery(search.title)}
+                            className="text-gray-500 hover:text-gray-700 ml-2"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                        <span className="text-sm text-gray-500">{search.traffic}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-500 rounded-full h-2"
+                          style={{ width: `${(search.traffic / maxTraffic) * 100}%` }}
+                        ></div>
+                      </div>
                     </div>
-                    <span className="text-sm text-gray-500">{search.traffic}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-500 rounded-full h-2"
-                      style={{ width: `${(search.traffic / maxTraffic) * 100}%` }}
-                    ></div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               ))}
           </div>
         )}
 
         {searchQueries.length > 0 && (
-          <div className="mt-4">
-            <a
-              href={getGoogleTrendsUrl(searchQueries)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:underline flex items-center"
-            >
-              View on Google Trends
-              <ExternalLink size={14} className="ml-1" />
-            </a>
-          </div>
+          <Button
+            className="w-full rounded-lg mt-4"
+            variant="outline"
+            onClick={() => window.open(getGoogleTrendsUrl(searchQueries), '_blank')}
+          >
+            View on Google Trends
+            <ExternalLink size={14} className="ml-2" />
+          </Button>
         )}
       </CardContent>
     </Card>
