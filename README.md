@@ -25,7 +25,7 @@ To add shadcn components like `Button`, follow these steps:
 2. **Add a Component**:
    Add a component using the CLI, for example:
    ```bash
-   npx shadcn-ui add button
+   npx shadcn@latest add button
    ```
 
 3. **Use the Component**:
