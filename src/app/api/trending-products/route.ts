@@ -46,7 +46,10 @@ export async function GET(request: Request) {
 
     console.log('Returning product trends:', trendingProducts);
 
-    return NextResponse.json(trendingProducts);
+    return NextResponse.json({
+      trends: trendingProducts,
+      lastUpdated: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Error fetching product searches:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

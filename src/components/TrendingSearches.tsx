@@ -38,7 +38,7 @@ export function TrendingSearches() {
       }
       
       // Ensure the data is in the expected format
-      const formattedData = data.map((item: any) => {
+      const formattedData = data.trends.map((item: any) => {
         try {
           return {
             title: item.title || 'Unknown',
@@ -56,6 +56,7 @@ export function TrendingSearches() {
       console.log('Formatted data:', formattedData);
       
       setTrendingSearches(formattedData);
+      setLastUpdated(data.lastUpdated);
     } catch (error) {
       console.error('Error fetching product searches:', error);
       setError(error instanceof Error ? error.message : 'Failed to load product searches');
@@ -140,6 +141,11 @@ export function TrendingSearches() {
     <Card className="w-full max-w-3xl flex flex-col">
       <CardHeader>
         <CardTitle>Product Category Trends</CardTitle>
+        {lastUpdated && (
+          <p className="text-sm text-muted-foreground">
+            Last updated: {new Date(lastUpdated).toLocaleString()}
+          </p>
+        )}
       </CardHeader>
       <CardContent className="flex-grow flex flex-col space-y-4">
         <form onSubmit={handleAddQuery} className="mb-4">
