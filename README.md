@@ -8,29 +8,47 @@ First, run the development server:
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Adding shadcn Components
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+To add shadcn components like `Button`, follow these steps:
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+1. **Install Shadcn UI**:
+   Ensure Shadcn UI is installed in your project:
+   ```bash
+   npm install @shadcn/ui
+   # or
+   yarn add @shadcn/ui
+   ```
 
-## Learn More
+2. **Create a Component**:
+   Create a new file for your component, for example `Button.tsx` in the `src/components/ui` directory:
+   ```typescript:wavee/src/components/ui/Button.tsx
+   import { Button } from "@shadcn/ui"
 
-To learn more about Next.js, take a look at the following resources:
+   export default function MyButton() {
+     return (
+       <Button className="bg-blue-500 text-white">
+         Click Me
+       </Button>
+     )
+   }
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. **Use the Component**:
+   Import and use the component in your application:
+   ```typescript:wavee/src/pages/index.tsx
+   import MyButton from '../components/ui/Button'
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+   export default function Home() {
+     return (
+       <div>
+         <h1>Welcome to My App</h1>
+         <MyButton />
+       </div>
+     )
+   }
+   ```
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+By following these steps, you can add and use Shadcn components in your project.
