@@ -18,13 +18,13 @@ const rateLimit = new LRUCache({
 
 export async function GET(request: Request) {
   const ip = request.headers.get('x-forwarded-for') || 'unknown';
-  const currentRequests = rateLimit.get(ip) || 0;
+  const currentRequests = rateLimit.get(ip) as number | undefined;
 
-  if (currentRequests > 10) {
+  if (currentRequests !== undefined && currentRequests > 10) {
     return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
   }
 
-  rateLimit.set(ip, currentRequests + 1);
+  rateLimit.set(ip, (currentRequests || 0) + 1);
 
   const { searchParams } = new URL(request.url);
   const queries = searchParams.getAll('q');
@@ -84,8 +84,8 @@ async function fetchProductData(query: string): Promise<TrendingProduct> {
   return {
     title: query,
     traffic: timelineData.interest_over_time?.timeline_data?.[timelineData.interest_over_time.timeline_data.length - 1]?.values?.[0]?.value ?? 0,
-    relatedQueries: relatedQueriesData.related_queries?.top?.map(q => q.query).slice(0, 3) ?? [],
-    timelineData: timelineData.interest_over_time?.timeline_data?.map(item => ({
+    relatedQueries: (relatedQueriesData.related_queries?.top as { query: string }[] | undefined)?.map(q => q.query).slice(0, 3) ?? [],
+    timelineData: timelineData.interest_over_time?.timeline_data?.map((item: { date: string; values: { value: number }[] }) => ({
       date: item.date,
       value: item.values[0].value
     })) ?? []
@@ -106,7 +106,11 @@ async function fetchTrendingSearches(): Promise<TrendingProduct[]> {
     throw new Error(data.error);
   }
 
-  return data.daily_searches?.[0]?.searches?.map(search => ({
+  return data.daily_searches?.[0]?.searches?.map((search: {
+    query: string;
+    traffic: number;
+    related_queries?: { query: string }[];
+  }) => ({
     title: search.query,
     traffic: search.traffic,
     relatedQueries: search.related_queries?.map(q => q.query) ?? [],
