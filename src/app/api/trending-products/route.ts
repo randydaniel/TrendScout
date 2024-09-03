@@ -1,13 +1,31 @@
 import { NextResponse } from 'next/server';
-import googleTrends from 'google-trends-api';
+import { LRUCache } from 'lru-cache';
+
+const SERP_API_KEY = process.env.SERP_API_KEY;
 
 interface TrendingProduct {
   title: string;
   traffic: number;
   relatedQueries: string[];
+  timelineData: { date: string; value: number }[];
 }
 
+// Simple rate limiting
+const rateLimit = new LRUCache({
+  max: 100,
+  ttl: 60000, // 1 minute
+});
+
 export async function GET(request: Request) {
+  const ip = request.headers.get('x-forwarded-for') || 'unknown';
+  const currentRequests = rateLimit.get(ip) as number | undefined;
+
+  if (currentRequests !== undefined && currentRequests > 10) {
+    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+  }
+
+  rateLimit.set(ip, (currentRequests || 0) + 1);
+
   const { searchParams } = new URL(request.url);
   const queries = searchParams.getAll('q');
 
@@ -17,32 +35,10 @@ export async function GET(request: Request) {
     let trendingProducts: TrendingProduct[] = [];
 
     if (queries.length > 0) {
-      // Fetch Google Trends data for each query
-      const trendsPromises = queries.map(async (query) => {
-        const result = await googleTrends.interestOverTime({ keyword: query, geo: 'US' });
-        const data = JSON.parse(result);
-        const timelineData = data.default.timelineData;
-        const latestPoint = timelineData[timelineData.length - 1];
-        return {
-          title: query,
-          traffic: latestPoint.value[0],
-          relatedQueries: await fetchRelatedQueries(query)
-        };
-      });
-
-      trendingProducts = await Promise.all(trendsPromises);
+      trendingProducts = await Promise.all(queries.map(fetchProductData));
     } else {
-      // If no queries provided, fetch overall trending searches
-      const trendingSearches = await fetchTrendingSearches();
-      trendingProducts = await Promise.all(trendingSearches.map(async (search) => ({
-        title: search,
-        traffic: 100, // Default value as we don't have specific traffic data
-        relatedQueries: await fetchRelatedQueries(search)
-      })));
+      trendingProducts = await fetchTrendingSearches();
     }
-
-    // Sort by traffic in descending order
-    trendingProducts.sort((a, b) => b.traffic - a.traffic);
 
     console.log('Returning product trends:', trendingProducts);
 
@@ -51,63 +47,73 @@ export async function GET(request: Request) {
       lastUpdated: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error fetching product searches:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: 'Error fetching product searches', details: errorMessage }, { status: 500 });
+    console.error('Error in API route:', error);
+    return NextResponse.json({ 
+      error: 'Failed to fetch product searches', 
+      details: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 });
   }
 }
 
-async function fetchRelatedQueries(query: string): Promise<string[]> {
-  try {
-    const result = await googleTrends.relatedQueries({ keyword: query, geo: 'US' });
-    const data = JSON.parse(result);
-    
-    console.log(`Data structure for query "${query}":`, JSON.stringify(data, null, 2));
-
-    if (data && data.default && data.default.rankedList && Array.isArray(data.default.rankedList)) {
-      const relatedQueries = data.default.rankedList
-        .flatMap((list: any) => list.rankedKeyword || [])
-        .map((item: any) => item.query || '')
-        .filter(Boolean)
-        .slice(0, 3);
-
-      if (relatedQueries.length > 0) {
-        return relatedQueries;
-      }
-    }
-
-    console.warn(`No related queries found for: ${query}`);
-    // Fallback: Generate some generic related queries
-    return generateGenericRelatedQueries(query);
-  } catch (error) {
-    console.error('Error fetching related queries:', error);
-    return generateGenericRelatedQueries(query);
-  }
-}
-
-function generateGenericRelatedQueries(query: string): string[] {
-  const genericQueries = [
-    `${query} near me`,
-    `${query} price`,
-    `${query} reviews`,
-    `best ${query}`,
-    `${query} how to`,
-    `${query} vs`,
-  ];
+async function fetchProductData(query: string): Promise<TrendingProduct> {
+  // Fetch related queries
+  const relatedQueriesResponse = await fetch(`https://serpapi.com/search.json?engine=google_trends&q=${encodeURIComponent(query)}&data_type=RELATED_QUERIES&geo=US&api_key=${SERP_API_KEY}`);
   
-  // Shuffle the array and return the first 3 items
-  return genericQueries.sort(() => 0.5 - Math.random()).slice(0, 3);
+  if (!relatedQueriesResponse.ok) {
+    throw new Error(`SerpAPI request failed with status ${relatedQueriesResponse.status}`);
+  }
+
+  const relatedQueriesData = await relatedQueriesResponse.json();
+
+  // Fetch timeline data
+  const timelineResponse = await fetch(`https://serpapi.com/search.json?engine=google_trends&q=${encodeURIComponent(query)}&data_type=TIMESERIES&geo=US&api_key=${SERP_API_KEY}`);
+
+  if (!timelineResponse.ok) {
+    throw new Error(`SerpAPI request failed with status ${timelineResponse.status}`);
+  }
+
+  const timelineData = await timelineResponse.json();
+
+  console.log('SerpAPI responses:', { relatedQueriesData, timelineData });
+
+  if (relatedQueriesData.error || timelineData.error) {
+    console.error('SerpAPI error:', relatedQueriesData.error || timelineData.error);
+    throw new Error(relatedQueriesData.error || timelineData.error);
+  }
+
+  return {
+    title: query,
+    traffic: timelineData.interest_over_time?.timeline_data?.[timelineData.interest_over_time.timeline_data.length - 1]?.values?.[0]?.value ?? 0,
+    relatedQueries: (relatedQueriesData.related_queries?.top as { query: string }[] | undefined)?.map(q => q.query).slice(0, 3) ?? [],
+    timelineData: timelineData.interest_over_time?.timeline_data?.map((item: { date: string; values: { value: number }[] }) => ({
+      date: item.date,
+      value: item.values[0].value
+    })) ?? []
+  };
 }
 
-async function fetchTrendingSearches(): Promise<string[]> {
-  try {
-    const result = await googleTrends.dailyTrends({ geo: 'US' });
-    const data = JSON.parse(result);
-    return data.default.trendingSearchesDays[0].trendingSearches
-      .slice(0, 5)
-      .map((trend: any) => trend.title.query);
-  } catch (error) {
-    console.error('Error fetching trending searches:', error);
-    return [];
+async function fetchTrendingSearches(): Promise<TrendingProduct[]> {
+  const response = await fetch(`https://serpapi.com/search.json?engine=google_trends_trending_now&frequency=daily&geo=US&api_key=${SERP_API_KEY}`);
+  
+  if (!response.ok) {
+    throw new Error(`SerpAPI request failed with status ${response.status}`);
   }
+
+  const data = await response.json();
+
+  if (data.error) {
+    console.error('SerpAPI error:', data.error);
+    throw new Error(data.error);
+  }
+
+  return data.daily_searches?.[0]?.searches?.map((search: {
+    query: string;
+    traffic: number;
+    related_queries?: { query: string }[];
+  }) => ({
+    title: search.query,
+    traffic: search.traffic,
+    relatedQueries: search.related_queries?.map(q => q.query) ?? [],
+    timelineData: []
+  })) ?? [];
 }
