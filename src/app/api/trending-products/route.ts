@@ -17,21 +17,21 @@ const rateLimit = new LRUCache({
 });
 
 export async function GET(request: Request) {
-  const ip = request.headers.get('x-forwarded-for') || 'unknown';
-  const currentRequests = rateLimit.get(ip) as number | undefined;
-
-  if (currentRequests !== undefined && currentRequests > 10) {
-    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
-  }
-
-  rateLimit.set(ip, (currentRequests || 0) + 1);
-
-  const { searchParams } = new URL(request.url);
-  const queries = searchParams.getAll('q');
-
-  console.log('Received queries:', queries);
-
   try {
+    const ip = request.headers.get('x-forwarded-for') || 'unknown';
+    const currentRequests = rateLimit.get(ip) as number | undefined;
+
+    if (currentRequests !== undefined && currentRequests > 10) {
+      return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+    }
+
+    rateLimit.set(ip, (currentRequests || 0) + 1);
+
+    const { searchParams } = new URL(request.url);
+    const queries = searchParams.getAll('q');
+
+    console.log('Received queries:', queries);
+
     let trendingProducts: TrendingProduct[] = [];
 
     if (queries.length > 0) {

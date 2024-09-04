@@ -7,14 +7,14 @@ import { ExternalLink, X, Plus, Check, ChevronUp, ChevronDown, RefreshCw } from 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/src/components/ui/chart";
 
+const MAX_QUERIES = 5;
+
 interface TrendingSearch {
   title: string;
   traffic: number;
   relatedQueries: string[];
   timelineData: { date: string; value: number }[];
 }
-
-const MAX_QUERIES = 5;
 
 interface ChartConfig {
   [key: string]: {
@@ -74,10 +74,18 @@ export function TrendingSearches() {
     setIsLoading(true);
     try {
       const response = await fetch(`/api/trending-products?q=${encodeURIComponent(query)}`);
-      const data = await response.json();
+      const text = await response.text(); // First, get the response as text
+      let data;
+      try {
+        data = JSON.parse(text); // Try to parse it as JSON
+      } catch (e) {
+        // If parsing fails, it's not a JSON response
+        throw new Error(text || 'Failed to fetch product search');
+      }
+      
       console.log('API response for query:', query, data);
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch product search');
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
       const newSearch = data.trends[0];
       setUserSearches(prev => [...prev, newSearch]);
@@ -309,12 +317,11 @@ export function TrendingSearches() {
             <ChartContainer config={chartConfig}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
                   <YAxis />
                   <Tooltip content={<ChartTooltipContent />} />
                   <Legend />
-                  {userSearches.map((search) => (
+                  {userSearches.map((search, index) => (
                     <Line
                       key={search.title}
                       type="monotone"
