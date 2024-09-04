@@ -4,16 +4,24 @@ import { Input } from "@/src/components/ui/input";
 import { Button } from "@/src/components/ui/button";
 import { Badge } from "@/src/components/ui/badge";
 import { ExternalLink, X, Plus, Check, ChevronUp, ChevronDown, RefreshCw } from "lucide-react";
-import { Line } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
-
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/src/components/ui/chart";
 
 interface TrendingSearch {
   title: string;
   traffic: number;
   relatedQueries: string[];
   timelineData: { date: string; value: number }[];
+}
+
+const MAX_QUERIES = 5;
+
+interface ChartConfig {
+  [key: string]: {
+    label?: React.ReactNode;
+    icon?: React.ComponentType;
+    color?: string;
+  };
 }
 
 export function TrendingSearches() {
@@ -54,14 +62,14 @@ export function TrendingSearches() {
 
   const handleAddQuery = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (currentQuery) {
+    if (currentQuery && userSearches.length < MAX_QUERIES) {
       await addQuery(currentQuery);
     }
   };
 
   const addQuery = async (query: string) => {
-    if (userSearches.some(search => search.title === query)) {
-      return; // If the query already exists, don't add it again
+    if (userSearches.some(search => search.title === query) || userSearches.length >= MAX_QUERIES) {
+      return; // If the query already exists or max queries reached, don't add it
     }
     setIsLoading(true);
     try {
@@ -89,7 +97,7 @@ export function TrendingSearches() {
   const handleToggleTrendingQuery = (query: string) => {
     if (userSearches.some(search => search.title === query)) {
       handleRemoveQuery(query);
-    } else {
+    } else if (userSearches.length < MAX_QUERIES) {
       addQuery(query);
     }
   };
@@ -107,36 +115,67 @@ export function TrendingSearches() {
   };
 
   const chartData = useMemo(() => {
-    if (userSearches.length === 0) {
-      return { labels: [], datasets: [] };
+    if (userSearches.length === 0 || !userSearches[0].timelineData) {
+      return [];
     }
-    const labels = userSearches[0].timelineData.map(item => item.date);
-    const datasets = userSearches.map((search, index) => {
-      const hue = (index * 137.5) % 360;
-      return {
-        label: search.title,
-        data: search.timelineData.map(item => item.value),
-        borderColor: `hsl(${hue}, 70%, 50%)`,
-        backgroundColor: `hsla(${hue}, 70%, 50%, 0.5)`,
-      };
+    return userSearches[0].timelineData.map((item, index) => {
+      const dataPoint: { [key: string]: string | number } = { date: item.date };
+      userSearches.forEach(search => {
+        if (search.timelineData && search.timelineData[index]) {
+          dataPoint[search.title] = search.timelineData[index].value || 0;
+        } else {
+          dataPoint[search.title] = 0;
+        }
+      });
+      return dataPoint;
     });
-    return { labels, datasets };
   }, [userSearches]);
 
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top' as const,
+  const chartConfig = useMemo<ChartConfig>(() => {
+    return {
+      ...userSearches.reduce<ChartConfig>((acc, search, index) => {
+        const hue = (index * 137.5) % 360;
+        acc[search.title] = {
+          label: search.title,
+          color: `hsl(${hue}, 70%, 50%)`,
+        };
+        return acc;
+      }, {}),
+      chart: {
+        label: 'Chart',
+        color: 'transparent',
       },
-      title: {
-        display: true,
-        text: 'Search Interest Over Time',
-      },
-    },
-  };
+    };
+  }, [userSearches]);
 
   const maxTraffic = Math.max(...userSearches.map(search => search.traffic));
+
+  console.log('userSearches:', userSearches); // Add this line for debugging
+
+  const renderBadge = (query: string, isRelated: boolean = false) => {
+    const isSelected = userSearches.some(s => s.title === query);
+    const canAdd = userSearches.length < MAX_QUERIES;
+
+    return (
+      <Badge
+        key={query}
+        variant={isRelated ? "secondary" : "outline"}
+        className={`cursor-pointer transition-colors duration-200 ${
+          isSelected
+            ? 'bg-slate-900 text-white hover:bg-slate-800'
+            : 'hover:bg-slate-100'
+        }`}
+        onClick={() => handleToggleTrendingQuery(query)}
+      >
+        {isSelected ? (
+          <Check size={isRelated ? 12 : 14} className="mr-1" />
+        ) : canAdd ? (
+          <Plus size={isRelated ? 12 : 14} className="mr-1" />
+        ) : null}
+        {query}
+      </Badge>
+    );
+  };
 
   return (
     <Card className="w-full max-w-3xl flex flex-col">
@@ -165,9 +204,20 @@ export function TrendingSearches() {
               onChange={(e) => setCurrentQuery(e.target.value)}
               className="flex-grow"
             />
-            <Button type="submit" disabled={!currentQuery || isLoading}>Add</Button>
+            <Button 
+              type="submit" 
+              disabled={!currentQuery || isLoading || userSearches.length >= MAX_QUERIES}
+            >
+              Add
+            </Button>
           </div>
         </form>
+
+        {userSearches.length >= MAX_QUERIES && (
+          <p className="text-sm text-red-500">
+            You&apos;ve reached the maximum number of queries ({MAX_QUERIES}).
+          </p>
+        )}
 
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
@@ -187,25 +237,7 @@ export function TrendingSearches() {
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              {trendingSearches.map((search, index) => (
-                <Badge
-                  key={index}
-                  variant="outline"
-                  className={`cursor-pointer transition-colors duration-200 ${
-                    userSearches.some(s => s.title === search.title)
-                      ? 'bg-slate-900 text-white hover:bg-slate-800'
-                      : 'hover:bg-slate-100'
-                  }`}
-                  onClick={() => handleToggleTrendingQuery(search.title)}
-                >
-                  {userSearches.some(s => s.title === search.title) ? (
-                    <Check size={14} className="mr-1" />
-                  ) : (
-                    <Plus size={14} className="mr-1" />
-                  )}
-                  {search.title}
-                </Badge>
-              ))}
+              {trendingSearches.map((search) => renderBadge(search.title))}
             </div>
           </div>
         )}
@@ -257,25 +289,7 @@ export function TrendingSearches() {
                           <p className="text-sm font-medium mb-1">Related Queries:</p>
                           {search.relatedQueries && search.relatedQueries.length > 0 ? (
                             <div className="flex flex-wrap gap-2">
-                              {search.relatedQueries.map((query, idx) => (
-                                <Badge
-                                  key={idx}
-                                  variant="secondary"
-                                  className={`cursor-pointer transition-colors duration-200 ${
-                                    userSearches.some(s => s.title === query)
-                                      ? 'bg-slate-900 text-white hover:bg-slate-800'
-                                      : 'hover:bg-slate-100'
-                                  }`}
-                                  onClick={() => handleToggleTrendingQuery(query)}
-                                >
-                                  {userSearches.some(s => s.title === query) ? (
-                                    <Check size={12} className="mr-1" />
-                                  ) : (
-                                    <Plus size={12} className="mr-1" />
-                                  )}
-                                  {query}
-                                </Badge>
-                              ))}
+                              {search.relatedQueries.map((query) => renderBadge(query, true))}
                             </div>
                           ) : (
                             <p className="text-sm text-gray-500">No related queries found.</p>
@@ -290,9 +304,28 @@ export function TrendingSearches() {
           </div>
         )}
 
-        {userSearches.length > 0 && (
+        {userSearches.length > 0 && chartData.length > 0 && (
           <div className="mt-4 h-[400px]">
-            <Line data={chartData} options={chartOptions} />
+            <ChartContainer config={chartConfig}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip content={<ChartTooltipContent />} />
+                  <Legend />
+                  {userSearches.map((search) => (
+                    <Line
+                      key={search.title}
+                      type="monotone"
+                      dataKey={search.title}
+                      stroke={chartConfig[search.title].color}
+                      activeDot={{ r: 8 }}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartContainer>
           </div>
         )}
 
