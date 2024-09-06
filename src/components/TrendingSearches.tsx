@@ -67,19 +67,18 @@ export function TrendingSearches() {
     }
   };
 
-  const addQuery = async (query: string) => {
+  const addQuery = async (query: string, retries = 3) => {
     if (userSearches.some(search => search.title === query) || userSearches.length >= MAX_QUERIES) {
-      return; // If the query already exists or max queries reached, don't add it
+      return;
     }
     setIsLoading(true);
     try {
       const response = await fetch(`/api/trending-products?q=${encodeURIComponent(query)}`);
-      const text = await response.text(); // First, get the response as text
+      const text = await response.text();
       let data;
       try {
-        data = JSON.parse(text); // Try to parse it as JSON
+        data = JSON.parse(text);
       } catch (e) {
-        // If parsing fails, it's not a JSON response
         throw new Error(text || 'Failed to fetch product search');
       }
       
@@ -91,6 +90,11 @@ export function TrendingSearches() {
       setUserSearches(prev => [...prev, newSearch]);
     } catch (error) {
       console.error('Error fetching product search:', error);
+      if (retries > 0) {
+        console.log(`Retrying... (${retries} attempts left)`);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for 1 second before retrying
+        return addQuery(query, retries - 1);
+      }
       setError(error instanceof Error ? error.message : 'Failed to add search');
     } finally {
       setIsLoading(false);
@@ -190,15 +194,6 @@ export function TrendingSearches() {
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
           <span>Trend Scout</span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchTrendingProducts}
-            disabled={isLoading}
-          >
-            <RefreshCw size={16} className={`mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
         </CardTitle>
         <p className="text-sm text-slate-500 tracking-tight">Your Google Trends Analysis Tool</p>
       </CardHeader>
@@ -313,15 +308,21 @@ export function TrendingSearches() {
         )}
 
         {userSearches.length > 0 && chartData.length > 0 && (
-          <div className="mt-4 h-[400px]">
+          <div className="mt-4 h-[400px] relative">
+            {isLoading && (
+              <div className="absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center z-10">
+                <RefreshCw size={24} className="animate-spin text-slate-500" />
+              </div>
+            )}
             <ChartContainer config={chartConfig}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
                   <YAxis />
                   <Tooltip content={<ChartTooltipContent />} />
                   <Legend />
-                  {userSearches.map((search, index) => (
+                  {userSearches.map((search) => (
                     <Line
                       key={search.title}
                       type="monotone"
