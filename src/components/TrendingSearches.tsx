@@ -130,11 +130,15 @@ export function TrendingSearches() {
     if (userSearches.length === 0 || !userSearches[0].timelineData) {
       return [];
     }
+    const maxValue = Math.max(...userSearches.flatMap(search => 
+      search.timelineData?.map(item => item.value) ?? []
+    ));
     return userSearches[0].timelineData.map((item, index) => {
       const dataPoint: { [key: string]: string | number } = { date: item.date };
       userSearches.forEach(search => {
         if (search.timelineData && search.timelineData[index]) {
-          dataPoint[search.title] = search.timelineData[index].value || 0;
+          // Scale the value to 0-100 range
+          dataPoint[search.title] = (search.timelineData[index].value / maxValue) * 100 || 0;
         } else {
           dataPoint[search.title] = 0;
         }
@@ -319,7 +323,7 @@ export function TrendingSearches() {
                 <LineChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
-                  <YAxis />
+                  <YAxis domain={[0, 100]} />
                   <Tooltip content={<ChartTooltipContent />} />
                   <Legend />
                   {userSearches.map((search) => (
